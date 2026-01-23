@@ -17,18 +17,22 @@ Sync time entries from the Timing app (macOS) to Clockify.
 
 ## Setup
 
-### 1. Install Dependencies
+From the `timesheets` directory, run the following commands:
+
+### 1. Create Virtual Environment
 
 ```bash
-cd timing-clockify
 python3 -m venv venv
 source venv/bin/activate
-pip install requests
 ```
 
-### 2. Configure
+### 2. Install Dependencies
 
-Run the initialization script to set up your Clockify API key and default project:
+```bash
+pip install -r timing-clockify/requirements.txt
+```
+
+### 3. Configure
 
 ```bash
 python3 init_config.py
@@ -96,14 +100,16 @@ timestamp|source_file|error_sev|error_type|client|project|task|date|duration|mes
 timesheets/
 ├── .env                    # Configuration (API key, default project)
 ├── .gitignore              # Ignores CSV, PDF, log, and .env files
+├── LICENSE                 # MIT License
 ├── README.md               # This file
 ├── init_config.py          # Configuration setup script
 ├── sync_timing.py          # Main runner script
+├── venv/                   # Python virtual environment
 ├── *.csv                   # Timing CSV exports (ignored by git)
 ├── error-*.log             # Error logs (ignored by git)
 └── timing-clockify/
-    ├── sync_timing_to_clockify.py  # Core sync logic
-    └── venv/                       # Python virtual environment
+    ├── requirements.txt            # Python dependencies
+    └── sync_timing_to_clockify.py  # Core sync logic
 ```
 
 ## Clockify Requirements
