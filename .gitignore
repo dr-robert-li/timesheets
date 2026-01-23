@@ -1,0 +1,49 @@
+# Environment variables
+.env
+
+# Data files
+*.csv
+*.pdf
+*.log
+*.json
+*.html
+*.htm
+*.css
+*.scss
+*.sass
+*.less
+
+# Microsoft Office
+*.doc
+*.docx
+*.xls
+*.xlsx
+*.ppt
+*.pptx
+*.odt
+*.ods
+*.odp
+*.accdb
+*.mdb
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
