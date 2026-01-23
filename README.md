@@ -8,7 +8,7 @@ Sync time entries from the Timing app (macOS) to Clockify.
 
 - Reads CSV exports from Timing app
 - Matches Timing Project with Clockify Client by name
-- Creates time entries under a configurable default project (e.g., "GTM Engineering")
+- Creates time entries under a Clockify configurable default project (e.g., "Engineering from Timing")
 - Uses Timing Title as Clockify Task name (creates if not found)
 - Aggregates duration by date for matching tasks
 - Detects and skips duplicate entries (same Title + Start Date + End Date)
@@ -49,7 +49,7 @@ This will:
 
 1. Open Timing app
 2. Go to Reports
-3. Select the date range and projects to export
+3. Select all available Columns and the date range and projects to export
 4. Export as CSV with **Timespan: Exact** selected (required)
 5. Save the CSV file to the `timesheets` directory
 
@@ -116,7 +116,7 @@ timesheets/
 
 Before syncing, ensure in Clockify:
 1. **Clients exist** - Create clients matching your Timing Project names
-2. **Projects exist** - Create the default project (e.g., "GTM Engineering") for each client you want to sync
+2. **Projects exist** - Create the default project (e.g., "Engineering from Timing") for each client you want to sync - this project will always be the same.
 
 ## Troubleshooting
 
