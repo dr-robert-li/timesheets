@@ -258,7 +258,8 @@ def create_time_entry(workspace_id, project_id, task_id, start_time, duration):
         "start": start_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "end": end_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "projectId": project_id,
-        "taskId": task_id
+        "taskId": task_id,
+        "billable": True
     }
     response = requests.post(
         f"{BASE_URL}/workspaces/{workspace_id}/time-entries",
@@ -275,7 +276,8 @@ def update_time_entry(workspace_id, entry_id, start_time, end_time, project_id, 
         "start": start_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "end": end_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "projectId": project_id,
-        "taskId": task_id
+        "taskId": task_id,
+        "billable": True
     }
     response = requests.put(
         f"{BASE_URL}/workspaces/{workspace_id}/time-entries/{entry_id}",
