@@ -332,6 +332,11 @@ def read_timing_csv(filepath):
             if duration.total_seconds() == 0:
                 continue
 
+            # Skip non-billable entries (do not sync to Clockify)
+            billing_status = row.get("Billing Status", "").strip()
+            if billing_status == "Not Billable":
+                continue
+
             start_date = parse_iso_datetime(row["Start Date"])
             end_date = parse_iso_datetime(row["End Date"])
 
@@ -340,7 +345,7 @@ def read_timing_csv(filepath):
                 "project": row["Project"].strip(),
                 "title": row.get("Title", "").strip() or "General",
                 "notes": row.get("Notes", "").strip(),
-                "billing_status": row.get("Billing Status", "").strip(),
+                "billing_status": billing_status,
                 "start_date": start_date,
                 "end_date": end_date,
                 "date": start_date.date()  # Extract date for grouping
