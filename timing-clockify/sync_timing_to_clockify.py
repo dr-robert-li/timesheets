@@ -179,6 +179,10 @@ def get_tasks(workspace_id, project_id):
     return {task["name"]: task["id"] for task in response.json()}
 
 
+# Clockify enforces a 100-character limit on task names; longer names return HTTP 400.
+MAX_TASK_NAME_LEN = 100
+
+
 def create_task(workspace_id, project_id, name):
     """Create a new task."""
     response = requests.post(
@@ -186,12 +190,17 @@ def create_task(workspace_id, project_id, name):
         headers=HEADERS,
         json={"name": name}
     )
+    if not response.ok:
+        print(f"    Clockify rejected task '{name}': {response.status_code} {response.text}")
     response.raise_for_status()
     return response.json()["id"]
 
 
 def get_or_create_task(workspace_id, project_id, name):
     """Get existing task or create new one."""
+    # Truncate to Clockify's limit before both lookup and create so dedup stays consistent.
+    if len(name) > MAX_TASK_NAME_LEN:
+        name = name[:MAX_TASK_NAME_LEN].rstrip()
     tasks = get_tasks(workspace_id, project_id)
     if name in tasks:
         print(f"    Found existing task: {name}")
