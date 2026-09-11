@@ -117,14 +117,24 @@ def get_workspace_id():
     return user["defaultWorkspace"]
 
 
+def get_all_pages(url, params=None):
+    """GET a Clockify list endpoint across all pages (default page size is 50)."""
+    items = []
+    page = 1
+    while True:
+        response = requests.get(url, headers=HEADERS, params={**(params or {}), "page": page, "page-size": 200})
+        response.raise_for_status()
+        batch = response.json()
+        items.extend(batch)
+        if len(batch) < 200:
+            return items
+        page += 1
+
+
 def get_clients(workspace_id):
     """Get all clients in the workspace."""
-    response = requests.get(
-        f"{BASE_URL}/workspaces/{workspace_id}/clients",
-        headers=HEADERS
-    )
-    response.raise_for_status()
-    return {client["name"]: client["id"] for client in response.json()}
+    clients = get_all_pages(f"{BASE_URL}/workspaces/{workspace_id}/clients")
+    return {client["name"]: client["id"] for client in clients}
 
 
 def get_client(workspace_id, name, all_clients=None):
@@ -144,12 +154,7 @@ def get_client(workspace_id, name, all_clients=None):
 
 def get_projects(workspace_id):
     """Get all projects in the workspace."""
-    response = requests.get(
-        f"{BASE_URL}/workspaces/{workspace_id}/projects",
-        headers=HEADERS
-    )
-    response.raise_for_status()
-    return response.json()
+    return get_all_pages(f"{BASE_URL}/workspaces/{workspace_id}/projects")
 
 
 def get_project_for_client(workspace_id, project_name, client_id, all_projects=None):
@@ -171,12 +176,8 @@ def get_project_for_client(workspace_id, project_name, client_id, all_projects=N
 
 def get_tasks(workspace_id, project_id):
     """Get all tasks for a project."""
-    response = requests.get(
-        f"{BASE_URL}/workspaces/{workspace_id}/projects/{project_id}/tasks",
-        headers=HEADERS
-    )
-    response.raise_for_status()
-    return {task["name"]: task["id"] for task in response.json()}
+    tasks = get_all_pages(f"{BASE_URL}/workspaces/{workspace_id}/projects/{project_id}/tasks")
+    return {task["name"]: task["id"] for task in tasks}
 
 
 # Clockify enforces a 100-character limit on task names; longer names return HTTP 400.
@@ -206,6 +207,8 @@ def get_or_create_task(workspace_id, project_id, name):
         print(f"    Found existing task: {name}")
         return tasks[name]
     print(f"    Creating new task: {name}")
+    if DRY_RUN:
+        return "dry-run-task"
     return create_task(workspace_id, project_id, name)
 
 
@@ -215,16 +218,10 @@ def get_time_entries(workspace_id, user_id, start_date, end_date):
     start_str = start_date.strftime("%Y-%m-%dT00:00:00Z")
     end_str = end_date.strftime("%Y-%m-%dT23:59:59Z")
 
-    response = requests.get(
+    return get_all_pages(
         f"{BASE_URL}/workspaces/{workspace_id}/user/{user_id}/time-entries",
-        headers=HEADERS,
-        params={
-            "start": start_str,
-            "end": end_str
-        }
+        {"start": start_str, "end": end_str}
     )
-    response.raise_for_status()
-    return response.json()
 
 
 def parse_duration(duration_str):
@@ -260,7 +257,10 @@ def parse_iso_datetime(dt_str):
     return datetime.fromisoformat(dt_str)
 
 
-def create_time_entry(workspace_id, project_id, task_id, start_time, duration):
+DRY_RUN = "--dry-run" in sys.argv
+
+
+def create_time_entry(workspace_id, project_id, task_id, start_time, duration, description):
     """Create a time entry."""
     end_time = start_time + duration
     payload = {
@@ -268,8 +268,11 @@ def create_time_entry(workspace_id, project_id, task_id, start_time, duration):
         "end": end_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "projectId": project_id,
         "taskId": task_id,
-        "billable": True
+        "billable": True,
+        "description": description
     }
+    if DRY_RUN:
+        return payload
     response = requests.post(
         f"{BASE_URL}/workspaces/{workspace_id}/time-entries",
         headers=HEADERS,
@@ -279,15 +282,18 @@ def create_time_entry(workspace_id, project_id, task_id, start_time, duration):
     return response.json()
 
 
-def update_time_entry(workspace_id, entry_id, start_time, end_time, project_id, task_id):
+def update_time_entry(workspace_id, entry_id, start_time, end_time, project_id, task_id, description):
     """Update a time entry with new end time."""
     payload = {
         "start": start_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "end": end_time.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "projectId": project_id,
         "taskId": task_id,
-        "billable": True
+        "billable": True,
+        "description": description
     }
+    if DRY_RUN:
+        return payload
     response = requests.put(
         f"{BASE_URL}/workspaces/{workspace_id}/time-entries/{entry_id}",
         headers=HEADERS,
@@ -388,7 +394,7 @@ def main():
         print("No CSV files found in parent directory")
         return
 
-    print(f"Processing: {os.path.basename(csv_file)}")
+    print(f"Processing: {os.path.basename(csv_file)}{' (DRY RUN)' if DRY_RUN else ''}")
     print(f"Modified: {datetime.fromtimestamp(os.path.getmtime(csv_file))}")
     print()
 
@@ -528,6 +534,16 @@ def main():
                 existing_duration = end - start
                 break
 
+        # Idempotency: each synced CSV stamps its filename into the entry description.
+        # Rerunning the same CSV skips entries already stamped; a new diff CSV still adds.
+        # ponytail: re-exporting a CSV under the same filename gets skipped; filenames are dated.
+        sync_tag = f"[synced {os.path.basename(csv_file)}]"
+        if existing_entry and sync_tag in (existing_entry.get("description") or ""):
+            print(f"    Already synced from this CSV, skipping")
+            skipped_count += 1
+            print()
+            continue
+
         if existing_entry:
             # Update existing entry by adding duration
             new_duration = existing_duration + total_duration
@@ -541,7 +557,8 @@ def main():
                 start_time,
                 end_time,
                 project_id,
-                task_id
+                task_id,
+                ((existing_entry.get("description") or "") + " " + sync_tag).strip()
             )
         else:
             # Create new time entry
@@ -553,7 +570,8 @@ def main():
                 project_id,
                 task_id,
                 start_time,
-                total_duration
+                total_duration,
+                sync_tag
             )
 
         processed_count += 1
